@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Multimedia - Audio Interaktif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .hidden { display: none !important; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
+        .loading-spinner { border-top-color: #3b82f6; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-sm mb-6">
+        <div class="max-w-4xl mx-auto px-4 flex justify-center space-x-8">
+            <button id="btn-tab-mhs" class="py-4 px-2 tab-active" onclick="switchTab('mhs')">Portal Mahasiswa</button>
+            <button id="btn-tab-dosen" class="py-4 px-2 text-gray-500" onclick="switchTab('dosen')">Portal Dosen</button>
+        </div>
+    </nav>
+
+    <!-- PORTAL MAHASISWA -->
+    <div id="portal-mhs" class="max-w-3xl mx-auto px-4 pb-12">
+        <div id="mhs-login" class="bg-white p-8 rounded-lg shadow-md text-center mt-10">
+            <h1 class="text-2xl font-bold mb-2">Kuis Multimedia Interaktif</h1>
+            <p class="text-gray-600 mb-6">Materi: Audio sebagai Elemen Interaktif</p>
+            <input type="text" id="mhs-nama" placeholder="Masukkan Nama Lengkap Anda" class="w-full max-w-sm p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <br>
+            <button onclick="mulaiKuis()" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">Mulai Kuis</button>
+        </div>
+
+        <div id="mhs-kuis" class="hidden bg-white p-6 md:p-8 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-6">
+                <span id="quiz-progress" class="text-sm font-semibold text-gray-500">Soal 1 dari 25</span>
+                <span class="text-sm font-semibold bg-blue-100 text-blue-800 px-3 py-1 rounded-full" id="mhs-display-nama"></span>
+            </div>
+            <div id="soal-container" class="mb-6">
+                <h2 id="soal-teks" class="text-lg md:text-xl font-bold mb-4"></h2>
+                <div id="opsi-container" class="space-y-3"></div>
+            </div>
+            <button id="btn-next" onclick="soalSelanjutnya()" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition hidden">Selanjutnya</button>
+        </div>
+
+        <div id="mhs-hasil" class="hidden bg-white p-8 rounded-lg shadow-md text-center mt-10">
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">Kuis Selesai!</h2>
+            <p class="text-gray-600 mb-6">Terima kasih telah mengerjakan. Nilai Anda sudah tersimpan di database dosen.</p>
+            <div class="text-5xl font-extrabold text-blue-600 mb-2" id="skor-akhir">0</div>
+            <p class="text-sm text-gray-500">Skor Anda</p>
+        </div>
+    </div>
+
+    <!-- PORTAL DOSEN -->
+    <div id="portal-dosen" class="hidden max-w-5xl mx-auto px-4 pb-12">
+        <div id="dosen-login" class="bg-white p-8 rounded-lg shadow-md text-center mt-10 max-w-md mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Akses Dosen</h2>
+            <input type="password" id="dosen-pass" placeholder="Masukkan Password" class="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="loginDosen()" class="w-full bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-900 transition">Masuk</button>
+            <p id="dosen-error" class="text-red-500 text-sm mt-3 hidden">Password salah!</p>
+        </div>
+
+        <div id="dosen-dashboard" class="hidden bg-white p-6 md:p-8 rounded-lg shadow-md">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Rekapitulasi Nilai Kuis Online</h2>
+                <div class="flex gap-3 mt-4 md:mt-0">
+                    <button onclick="muatDataTabel()" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 transition">🔄 Segarkan Data</button>
+                    <button onclick="unduhCSV()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition">⬇️ Unduh CSV</button>
+                </div>
+            </div>
+            
+            <p id="status-loading" class="text-center text-gray-500 py-8 hidden">Sedang mengambil data dari server...</p>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="tabel-utama">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700">
+                            <th class="p-3 border-b">Nama Mahasiswa</th>
+                            <th class="p-3 border-b text-center">Skor</th>
+                            <th class="p-3 border-b text-center">Benar</th>
+                            <th class="p-3 border-b text-center">Salah</th>
+                            <th class="p-3 border-b">Detail Salah (No. Soal)</th>
+                            <th class="p-3 border-b text-sm">Waktu Kirim</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabel-rekap">
+                        <!-- Data akan diisi dari Google Sheets -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // PERHATIAN: PASTE LINK DARI GOOGLE APPS SCRIPT DI BAWAH INI
+        // ==========================================
+        const scriptURL = "MASUKKAN_LINK_WEB_APP_DISINI";
+
+
+        // --- DATA SOAL PPTX ---
+        const bankSoal = [
+            { q: "Apa perbedaan utama audio interaktif dibandingkan audio linear?", o: ["Diputar berurutan dari awal hingga akhir", "Merespons aksi atau kondisi pengguna", "Hanya terdiri dari musik latar", "Tidak bisa di-pause atau dihentikan"], a: 1 },
+            { q: "Berikut ini yang merupakan contoh audio linear adalah?", o: ["Bunyi klik saat memilih menu", "Notifikasi pesan masuk", "Podcast dan lagu", "Suara 'Game Over'"], a: 2 },
+            { q: "Audio yang dipicu oleh klik, pilihan, skor, atau waktu disebut?", o: ["Audio linear", "Audio pasif", "Audio adaptif", "Audio interaktif"], a: 3 },
+            { q: "Apa saja tiga jenis audio utama dalam multimedia?", o: ["Narasi, musik latar, efek suara", "MP3, WAV, OGG", "Lossy, Lossless, MIDI", "Linear, Interaktif, Adaptif"], a: 0 },
+            { q: "Fungsi utama narasi dalam multimedia adalah?", o: ["Membangun emosi", "Menandai kejadian tertentu", "Menjelaskan informasi atau memandu pengguna", "Mengurangi ukuran file"], a: 2 },
+            { q: "Elemen audio yang berfungsi untuk membangun suasana, emosi, dan ritme adalah?", o: ["Narasi", "Musik latar", "Efek suara", "Audio cue"], a: 1 },
+            { q: "Bunyi jawaban benar/salah atau naik level pada aplikasi seperti Kahoot adalah contoh penggunaan audio sebagai?", o: ["Navigasi", "Umpan balik (feedback)", "Narasi pemandu", "Redundansi"], a: 1 },
+            { q: "Berapa durasi umum yang disarankan untuk feedback audio yang baik agar terasa singkat?", o: ["0,5 – 2 detik", "3 – 5 detik", "Lebih dari 5 detik", "Bebas, tergantung pembuatnya"], a: 0 },
+            { q: "Prinsip feedback audio yang menyatakan 'Aksi yang sama harus menghasilkan bunyi yang sama' disebut?", o: ["Singkat", "Jelas", "Konsisten", "Proporsional"], a: 2 },
+            { q: "Mengapa feedback audio yang proporsional itu penting?", o: ["Agar pengguna cepat bosan", "Agar suara tidak terlalu keras atau berlebihan sehingga mengganggu", "Agar ukuran file menjadi kecil", "Agar menutupi suara narasi"], a: 1 },
+            { q: "Audio cue atau narasi pemandu seperti 'Klik tombol Lanjut' berfungsi sebagai?", o: ["Navigasi dan penuntun", "Efek suara aksi", "Musik latar", "Audio linear"], a: 0 },
+            { q: "Penggunaan pembacaan teks otomatis (audio) sangat membantu bagi?", o: ["Pengguna dengan koneksi internet cepat", "Pengguna dengan keterbatasan penglihatan", "Desainer aplikasi", "Pengguna yang tidak suka membaca"], a: 1 },
+            { q: "Prinsip utama terkait kontrol audio (seperti play, pause, mute) dalam multimedia adalah?", o: ["Audio harus diputar otomatis tanpa opsi henti", "Pengguna harus selalu merasa memegang kendali", "Kontrol audio disembunyikan agar rapi", "Volume tidak boleh bisa diubah"], a: 1 },
+            { q: "Pengaturan volume untuk narasi dan musik latar sebaiknya?", o: ["Digabung menjadi satu tombol", "Dapat diatur secara terpisah", "Diatur maksimal secara default", "Tidak perlu disediakan"], a: 1 },
+            { q: "Manakah yang merupakan kesalahan umum dalam penggunaan audio?", o: ["Menyediakan tombol mute", "Musik latar menutupi narasi atau informasi penting", "Efek suara merespons kurang dari 1 detik", "Memberikan subtitle"], a: 1 },
+            { q: "Audio yang berubah-ubah secara dinamis sesuai aksi, level, atau kondisi pengguna (misal: musik menegang saat waktu hampir habis) disebut?", o: ["Audio linear", "Audio adaptif dan kontekstual", "Audio redundan", "Audio lossy"], a: 1 },
+            { q: "Dalam aspek teknis, jeda waktu antara aksi pengguna dan keluarnya suara yang terasa janggal disebut dengan masalah?", o: ["Kompresi", "Resolusi", "Latency", "Aksesibilitas"], a: 2 },
+            { q: "Format file audio apa yang paling umum digunakan untuk efek suara pendek?", o: ["MP3", "WAV/OGG", "DOCX", "PDF"], a: 1 },
+            { q: "Kompresi audio yang menghasilkan ukuran file lebih kecil dengan membuang sebagian data disebut?", o: ["Lossless", "Lossy", "ZIP", "RAR"], a: 1 },
+            { q: "Apa langkah aksesibilitas yang paling tepat untuk pengguna tuli atau sulit mendengar?", o: ["Meningkatkan volume secara paksa", "Sediakan subtitle atau transkrip untuk narasi", "Gunakan frekuensi suara tinggi", "Hapus semua elemen audio"], a: 1 },
+            { q: "Selain transkrip, penanda visual apa yang bisa menyertai feedback audio?", o: ["Ikon, warna, atau teks", "Gambar beresolusi sangat tinggi", "Animasi loading", "Tidak perlu penanda visual"], a: 0 },
+            { q: "Berdasarkan Prinsip Modalitas Mayer, penyampaian informasi akan lebih efektif jika menggunakan kombinasi?", o: ["Visual + teks panjang + narasi sama", "Visual + narasi", "Hanya teks panjang", "Hanya narasi tanpa visual"], a: 1 },
+            { q: "Mengapa menyajikan 'Visual + teks panjang + narasi yang sama persis' sebaiknya dihindari?", o: ["Karena menghemat kapasitas", "Karena terjadi redundansi yang membebani pemrosesan kognitif", "Karena membuat pengguna lebih cepat paham", "Karena tampilannya menjadi terlalu kosong"], a: 1 },
+            { q: "Dalam materi, apa yang dimaksud dengan 'Hindari redundansi'?", o: ["Mengulang efek suara yang sama berkali-kali", "Menampilkan terlalu banyak informasi serupa yang membebani otak", "Menghapus file audio yang tidak terpakai", "Menggunakan format MP3 daripada WAV"], a: 1 },
+            { q: "Secara keseluruhan, tujuan utama audio dalam multimedia interaktif adalah sebagai bagian dari?", o: ["Dekorasi visual", "Dialog antara pengguna dan sistem", "Sistem keamanan aplikasi", "Pengujian perangkat keras"], a: 1 }
+        ];
+
+        let soalSekarang = 0;
+        let jawabanMahasiswa = [];
+        let namaMahasiswa = "";
+        let dataGlobalDosen = []; // Untuk simpan data CSV
+
+        // Navigasi
+        function switchTab(tab) {
+            document.getElementById('portal-mhs').classList.add('hidden');
+            document.getElementById('portal-dosen').classList.add('hidden');
+            document.getElementById('btn-tab-mhs').classList.remove('tab-active', 'text-gray-500');
+            document.getElementById('btn-tab-dosen').classList.remove('tab-active', 'text-gray-500');
+
+            if (tab === 'mhs') {
+                document.getElementById('portal-mhs').classList.remove('hidden');
+                document.getElementById('btn-tab-mhs').classList.add('tab-active');
+                document.getElementById('btn-tab-dosen').classList.add('text-gray-500');
+            } else {
+                document.getElementById('portal-dosen').classList.remove('hidden');
+                document.getElementById('btn-tab-dosen').classList.add('tab-active');
+                document.getElementById('btn-tab-mhs').classList.add('text-gray-500');
+            }
+        }
+
+        // Kuis Mahasiswa
+        function mulaiKuis() {
+            if(scriptURL === "MASUKKAN_LINK_WEB_APP_DISINI"){
+                alert("Sistem belum dihubungkan ke Google Sheets. Silakan lapor ke dosen Anda.");
+                return;
+            }
+            const inputNama = document.getElementById('mhs-nama').value.trim();
+            if (inputNama === "") return alert("Silakan masukkan nama Anda!");
+            
+            namaMahasiswa = inputNama;
+            document.getElementById('mhs-display-nama').innerText = namaMahasiswa;
+            document.getElementById('mhs-login').classList.add('hidden');
+            document.getElementById('mhs-kuis').classList.remove('hidden');
+            soalSekarang = 0;
+            jawabanMahasiswa = new Array(bankSoal.length).fill(null);
+            tampilkanSoal();
+        }
+
+        function tampilkanSoal() {
+            const dataSoal = bankSoal[soalSekarang];
+            document.getElementById('quiz-progress').innerText = `Soal ${soalSekarang + 1} dari ${bankSoal.length}`;
+            document.getElementById('soal-teks').innerText = `${soalSekarang + 1}. ${dataSoal.q}`;
+            
+            const opsiContainer = document.getElementById('opsi-container');
+            opsiContainer.innerHTML = '';
+            document.getElementById('btn-next').classList.add('hidden');
+
+            dataSoal.o.forEach((opsi, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 border rounded-lg hover:bg-blue-50 transition focus:outline-none";
+                btn.innerText = opsi;
+                btn.onclick = () => pilihJawaban(index, btn);
+                opsiContainer.appendChild(btn);
+            });
+        }
+
+        function pilihJawaban(index, btnElem) {
+            jawabanMahasiswa[soalSekarang] = index;
+            const buttons = document.getElementById('opsi-container').children;
+            for (let btn of buttons) {
+                btn.classList.remove('bg-blue-100', 'border-blue-500', 'ring-2', 'ring-blue-500');
+                btn.classList.add('hover:bg-blue-50');
+            }
+            btnElem.classList.remove('hover:bg-blue-50');
+            btnElem.classList.add('bg-blue-100', 'border-blue-500', 'ring-2', 'ring-blue-500');
+            
+            const btnNext = document.getElementById('btn-next');
+            btnNext.classList.remove('hidden');
+            btnNext.innerText = (soalSekarang === bankSoal.length - 1) ? "Kirim Jawaban" : "Selanjutnya";
+        }
+
+        function soalSelanjutnya() {
+            if (soalSekarang < bankSoal.length - 1) {
+                soalSekarang++;
+                tampilkanSoal();
+            } else {
+                hitungDanSimpan();
+            }
+        }
+
+        function hitungDanSimpan() {
+            let benar = 0, salah = 0, listSalah = [];
+            jawabanMahasiswa.forEach((jawaban, index) => {
+                if (jawaban === bankSoal[index].a) benar++;
+                else { salah++; listSalah.push(index + 1); }
+            });
+
+            const skor = benar * 4; 
+            let teksSalah = listSalah.length > 0 ? listSalah.join(', ') : '-';
+
+            const btnNext = document.getElementById('btn-next');
+            btnNext.innerText = "Mengirim Nilai ke Server...";
+            btnNext.disabled = true;
+
+            const urlSimpan = `${scriptURL}?action=save&nama=${encodeURIComponent(namaMahasiswa)}&skor=${skor}&benar=${benar}&salah=${salah}&detailSalah=${encodeURIComponent(teksSalah)}`;
+
+            fetch(urlSimpan)
+                .then(response => {
+                    document.getElementById('mhs-kuis').classList.add('hidden');
+                    document.getElementById('mhs-hasil').classList.remove('hidden');
+                    document.getElementById('skor-akhir').innerText = skor;
+                })
+                .catch(error => {
+                    alert('Gagal mengirim nilai. Pastikan internet Anda lancar.');
+                    btnNext.innerText = "Coba Kirim Lagi";
+                    btnNext.disabled = false;
+                });
+        }
+
+        // Halaman Dosen
+        function loginDosen() {
+            if(scriptURL === "MASUKKAN_LINK_WEB_APP_DISINI"){
+                alert("URL Google Apps Script belum dimasukkan ke dalam file HTML.");
+                return;
+            }
+            const pass = document.getElementById('dosen-pass').value;
+            if (pass === "henrynabire") {
+                document.getElementById('dosen-login').classList.add('hidden');
+                document.getElementById('dosen-dashboard').classList.remove('hidden');
+                muatDataTabel();
+            } else {
+                document.getElementById('dosen-error').classList.remove('hidden');
+            }
+        }
+
+        function muatDataTabel() {
+            document.getElementById('status-loading').classList.remove('hidden');
+            document.getElementById('tabel-utama').classList.add('hidden');
+            
+            fetch(`${scriptURL}?action=read`)
+                .then(response => response.json())
+                .then(data => {
+                    dataGlobalDosen = data; // Simpan untuk fitur unduh CSV
+                    const tbody = document.getElementById('tabel-rekap');
+                    tbody.innerHTML = '';
+
+                    if (data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Belum ada data nilai masuk.</td></tr>';
+                    } else {
+                        data.forEach(row => {
+                            // Konversi waktu
+                            let waktuStr = row.waktu ? new Date(row.waktu).toLocaleString('id-ID') : '-';
+                            const tr = document.createElement('tr');
+                            tr.className = "border-b hover:bg-gray-50";
+                            tr.innerHTML = `
+                                <td class="p-3 font-medium">${row.nama}</td>
+                                <td class="p-3 text-center font-bold text-blue-600">${row.skor}</td>
+                                <td class="p-3 text-center text-green-600">${row.benar}</td>
+                                <td class="p-3 text-center text-red-500">${row.salah}</td>
+                                <td class="p-3 text-sm text-gray-600">${row.detailSalah}</td>
+                                <td class="p-3 text-xs text-gray-400">${waktuStr}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                    document.getElementById('status-loading').classList.add('hidden');
+                    document.getElementById('tabel-utama').classList.remove('hidden');
+                })
+                .catch(error => {
+                    alert("Gagal mengambil data dari Google Sheets. Periksa koneksi internet.");
+                    document.getElementById('status-loading').classList.add('hidden');
+                    document.getElementById('tabel-utama').classList.remove('hidden');
+                });
+        }
+
+        function unduhCSV() {
+            if (dataGlobalDosen.length === 0) return alert("Belum ada data untuk diunduh.");
+            let csvContent = "data:text/csv;charset=utf-8,Nama,Skor,Benar,Salah,Detail Salah,Waktu\n";
+            dataGlobalDosen.forEach(row => {
+                csvContent += `"${row.nama}",${row.skor},${row.benar},${row.salah},"${row.detailSalah}","${row.waktu}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Rekap_Nilai_Multimedia.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
